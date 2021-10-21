@@ -1,0 +1,513 @@
+Proyecto final Comunicacion de datos 2
+Equipo:
+Iribe Cota
+Juarez Vizcarra
+Suarez Juarez
+
+Direccion del contrato: 0x92cffb8423756cfeaba4f82bd08d0b10e8901ee1
+
+https://rinkeby.etherscan.io/tx/0x468268e31ba00c931670dfff4bced429403c45b05fb5dd6eb75a06dc975745ce 
+
+-------------------------------------------
+Contrator .sol:
+// SPDX-License-Identifier: GPL-3.0
+
+pragma solidity >=0.5.0;
+pragma experimental ABIEncoderV2;
+
+contract cert{
+//tres variables para la dirección del rector, secretario académico y director de escolares
+    address public Rector; address public Secretario; address public Director;
+    
+    //para mapear la id del titulo con el curp del estudiante
+    mapping (uint => string) ID_Curp;
+    
+    mapping (address=>bool) Aprobador;
+   
+    //dirección del responsable que expedira el titulo
+    address public responsable;
+    
+    //constructor se le envian las tres direcciones del Rector, Secretario y Director
+    constructor (address [3]  memory Aprobadores)public{
+        //se guarda el responsable de expedir el titulo
+        responsable = msg.sender;
+        Rector = Aprobadores[0];     Secretario = Aprobadores[1];   Director = Aprobadores[2];
+        for (uint i= 0; i<Aprobadores.length; i++){
+            Aprobador[Aprobadores[i]]=true; 
+        }
+    }
+    
+
+    //estructura que tiene el titulo
+    struct Titulo{
+        uint ID;
+        string Carrera;
+        string Fecha;
+        uint Aprobaciones;
+        mapping (address=>bool) aprobadoPor;
+    }
+    
+      struct Titulo2 {
+        uint ID;
+        string Carrera;
+        string Fecha;
+        
+    }
+    
+    //estructura de Persona
+    struct Persona{
+        string Curp;
+    }
+    //titulos que hay para checar (no estan aprobados) en espera de ser aprobados
+    Titulo [] public titulos;
+    
+    //titulos que estan aprobados
+    Titulo2 [] public titulosAprobados;
+    
+    //titulos que estan aprobados
+    Titulo2 [] public titulosNOAprobados;
+    
+    //titulos que hay para checar (no estan aprobados) en espera de ser aprobados
+    Titulo2 [] public titulos2;
+    
+    //Lista de curps de personas que se van a titular
+    Persona [] public personas;
+    
+    function ExpedicionTitulo(uint _ID, string memory _Carrera, string memory _Fecha, string memory _Curp)public{
+        //se guarda el responsable de expedir el titulo
+        responsable = msg.sender;
+        //creamos un titulo con los datos
+        //se guarda en el arreglo de titulos los datos que se le estan enviando al metodo
+        titulos2.push(Titulo2({
+             ID: _ID,
+             Carrera: _Carrera,
+             Fecha: _Fecha
+         }));
+        //se guarda en el arreglo de titulos los datos que se le estan enviando al metodo
+        uint256 idx = titulos.length;
+        
+        titulos.push();
+        
+        Titulo storage newTitulo = titulos[idx] ;
+
+        newTitulo.ID = _ID;
+        newTitulo.Carrera = _Carrera;
+        newTitulo.Fecha = _Fecha;
+        newTitulo.Aprobaciones = 0; 
+        
+        newTitulo.aprobadoPor[Rector]=false;
+        newTitulo.aprobadoPor[Secretario]=false;
+        newTitulo.aprobadoPor[Director]=false;
+
+         //se mapea el id con el curp
+        ID_Curp[_ID]=_Curp;
+    }
+    
+   //metodo para ver los titulos     
+    function verTitulos()public view returns (Titulo2 [] memory){
+        return titulos2;
+    }
+    
+     //metodo para ver los titulos    APROBADOS 
+    function verTitulosAprobados()public view returns (Titulo2 [] memory){
+        return titulosAprobados;
+    }
+    //metodo para ver los titulos   NO APROBADOS 
+    function verTitulosNOAprobados()public view returns (Titulo2 [] memory){
+        return titulosNOAprobados;
+    }
+    
+    //Aprueba el titulo dependiendo de la posicion elegida de la lista
+    function Aprobar(uint index)public{
+        require (Aprobador[msg.sender],"No eres Aprobador"); 
+        require(!titulos[index].aprobadoPor[msg.sender],"Usted ya ha aprobado este proceso");
+        require (titulos.length >= 0 && index < titulos.length);
+        titulos[index].aprobadoPor[msg.sender]=true;
+        titulos[index].Aprobaciones++;
+        if(titulos[index].Aprobaciones==3){
+            //Pasar titulo aprobado a la lista de titulos aprobados
+            uint256 idx = titulosAprobados.length;
+            titulosAprobados.push();
+            Titulo2 storage newTitulo = titulosAprobados[idx];
+            
+            newTitulo.ID = titulos[index].ID;
+            newTitulo.Carrera = titulos[index].Carrera;
+            newTitulo.Fecha = titulos[index].Fecha;
+
+        }
+    }
+    function NOAprobar(uint index)public{
+        require (Aprobador[msg.sender],"No eres Aprobador"); 
+        require(!titulos[index].aprobadoPor[msg.sender],"Usted ya ha aprobado este proceso");
+        require (titulos.length >= 0 && index < titulos.length);
+        titulos[index].aprobadoPor[msg.sender]=true;
+        titulos[index].Aprobaciones--;
+        if(titulos[index].Aprobaciones!=3){
+            //Pasar titulo aprobado a la lista de titulos aprobados
+            uint256 idx = titulosNOAprobados.length;
+            titulosNOAprobados.push();
+            Titulo2 storage newTitulo = titulosNOAprobados[idx];
+            
+            newTitulo.ID = titulos[index].ID;
+            newTitulo.Carrera = titulos[index].Carrera;
+            newTitulo.Fecha = titulos[index].Fecha;
+
+        }
+    }
+    
+    
+}
+
+-------------------------------------------
+abi:
+[
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "index",
+				"type": "uint256"
+			}
+		],
+		"name": "Aprobar",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "_ID",
+				"type": "uint256"
+			},
+			{
+				"internalType": "string",
+				"name": "_Carrera",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "_Fecha",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "_Curp",
+				"type": "string"
+			}
+		],
+		"name": "ExpedicionTitulo",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "index",
+				"type": "uint256"
+			}
+		],
+		"name": "NOAprobar",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address[3]",
+				"name": "Aprobadores",
+				"type": "address[3]"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	},
+	{
+		"inputs": [],
+		"name": "Director",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"name": "personas",
+		"outputs": [
+			{
+				"internalType": "string",
+				"name": "Curp",
+				"type": "string"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "Rector",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "responsable",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "Secretario",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"name": "titulos",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "ID",
+				"type": "uint256"
+			},
+			{
+				"internalType": "string",
+				"name": "Carrera",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "Fecha",
+				"type": "string"
+			},
+			{
+				"internalType": "uint256",
+				"name": "Aprobaciones",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"name": "titulos2",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "ID",
+				"type": "uint256"
+			},
+			{
+				"internalType": "string",
+				"name": "Carrera",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "Fecha",
+				"type": "string"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"name": "titulosAprobados",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "ID",
+				"type": "uint256"
+			},
+			{
+				"internalType": "string",
+				"name": "Carrera",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "Fecha",
+				"type": "string"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"name": "titulosNOAprobados",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "ID",
+				"type": "uint256"
+			},
+			{
+				"internalType": "string",
+				"name": "Carrera",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "Fecha",
+				"type": "string"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "verTitulos",
+		"outputs": [
+			{
+				"components": [
+					{
+						"internalType": "uint256",
+						"name": "ID",
+						"type": "uint256"
+					},
+					{
+						"internalType": "string",
+						"name": "Carrera",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "Fecha",
+						"type": "string"
+					}
+				],
+				"internalType": "struct cert.Titulo2[]",
+				"name": "",
+				"type": "tuple[]"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "verTitulosAprobados",
+		"outputs": [
+			{
+				"components": [
+					{
+						"internalType": "uint256",
+						"name": "ID",
+						"type": "uint256"
+					},
+					{
+						"internalType": "string",
+						"name": "Carrera",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "Fecha",
+						"type": "string"
+					}
+				],
+				"internalType": "struct cert.Titulo2[]",
+				"name": "",
+				"type": "tuple[]"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "verTitulosNOAprobados",
+		"outputs": [
+			{
+				"components": [
+					{
+						"internalType": "uint256",
+						"name": "ID",
+						"type": "uint256"
+					},
+					{
+						"internalType": "string",
+						"name": "Carrera",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "Fecha",
+						"type": "string"
+					}
+				],
+				"internalType": "struct cert.Titulo2[]",
+				"name": "",
+				"type": "tuple[]"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	}
+]
+
+-------------------------------------------
